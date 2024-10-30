@@ -7,6 +7,9 @@ import { db, storage } from "../../Firebase/FirebaseConfig";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import Swal from "sweetalert2";
 
+import { isAuthenticated } from "../../auth";
+import axios from "axios";
+
 const AddProduct = () => {
   const [loading, setLoading] = useState(false);
   const [ProductImage, setProductImage] = useState("");
@@ -16,6 +19,14 @@ const AddProduct = () => {
   const [Price, Setprice] = useState("");
   const [Offer, setOffer] = useState("");
   const [Brand, setBrand] = useState("");
+
+  const [isModalOpen, setIsModalOpen] = useState(false); // Modal visibility state
+  const [catName, setCatName] = useState(""); // Category name input state
+
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
+
+  const { user, token } = isAuthenticated();
 
   const addProduct = async (e) => {
     e.preventDefault();
@@ -30,18 +41,14 @@ const AddProduct = () => {
     formData.append("Brand", Brand);
     formData.append("ProductImage", ProductImage);
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
-
-    // Step 2: Toggle modal visibility
-    const openModal = () => setIsModalOpen(true);
-    const closeModal = () => setIsModalOpen(false);
-
     try {
-      const response = await axios.post("api", formData, {
-        // headers: {
-        //   ""
-        // },
-      });
+      const response = await fetch(
+        `http://localhost:8000/api/product/create/${userId}`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
       if (response.status === 201) {
         setLoading(false);
@@ -50,6 +57,8 @@ const AddProduct = () => {
           title: "Success!",
           text: "Product added successfully.",
         });
+      } else {
+        throw new Error("Failed to add product");
       }
     } catch (error) {
       setLoading(false);
@@ -62,11 +71,30 @@ const AddProduct = () => {
     }
   };
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Step 2: Toggle modal visibility
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => setIsModalOpen(false);
+  // add Category Function
+  const newCategoryAdded = (userId, token, category) => {
+    return fetch(`http://localhost:8000/api/category/create/${userId}`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(category),
+    })
+      .then((response) => response.json())
+      .catch((err) => {
+        console.log(err);
+      });
+  };
+  const addCategory = (event) => {
+    event.preventDefault();
+    console.log("Category:", catName);
+    newCategoryAdded(user._id, token, { catName }).then((data) => {
+      console.log("Response:", data);
+      closeModal(); // Close modal after submitting category
+    });
+  };
 
   return (
     <section className="flex first-line:items-center h-screen  p-10  gap-11">
@@ -82,6 +110,68 @@ const AddProduct = () => {
           </div>
 
           <div className="w-1/2">
+            {/* Add CARTEGORY */}
+
+            <div>
+              <div className="mb-10">
+                <h2 className="text-3xl font-bold">Add Category</h2>
+                <h4 className="text-lg font-semibold mb-6">
+                  If you want add new Category please add from here.
+                </h4>
+                <button
+                  onClick={openModal}
+                  className="bg-orange-400 hover:bg-orange-600 text-white px-2 text-2xl rounded-lg font-medium h-10"
+                >
+                  Category
+                </button>
+              </div>
+
+              {/* Modal */}
+              {isModalOpen && (
+                <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
+                  <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-3xl">
+                    <h2 className="text-2xl font-semibold text-gray-700 mb-4 text-center">
+                      Add New Category
+                    </h2>
+
+                    <form onSubmit={addCategory}>
+                      <div className="container mb-10">
+                        <div className="grid md:grid-cols-2">
+                          <div>
+                            <label className="text-gray-600 font-medium">
+                              Add Category
+                            </label>
+                            <input
+                              className="p-2 border border-gray-300 rounded-md text-gray-700 focus:border-orange-500 focus:outline-none"
+                              type="text"
+                              placeholder="Enter category"
+                              onChange={(e) => setCatName(e.target.value)}
+                              value={catName}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-orange-400 text-white rounded-md hover:bg-orange-500"
+                      >
+                        Submit
+                      </button>
+                    </form>
+
+                    <div className="flex justify-end gap-4 mt-6">
+                      <button
+                        onClick={closeModal}
+                        className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <h2 className="text-3xl font-bold mb-6">Add Product detail's </h2>
             <form onSubmit={addProduct}>
               <div className="mb-3">
@@ -131,89 +221,6 @@ const AddProduct = () => {
                     onChange={(e) => Setprice(e.target.value)}
                   />
                 </div>
-
-                <div>
-                  <span className=" text-gray-700 text-xl font-bold  ">
-                    Add Category
-                  </span>
-
-                  <button
-                    onClick={openModal}
-                    className="bg-orange-400 hover:bg-orange-600  text-white px-2 text-2xl rounded-lg font-medium h-10"
-                  >
-                    Category
-                  </button>
-                </div>
-
-                {/* Modal */}
-                {isModalOpen && (
-                  <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
-                    <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-3xl">
-                      <h2 className="text-2xl font-semibold text-gray-700 mb-4 text-center">
-                        Modal Title
-                      </h2>
-
-                      <form>
-                        <div className="container mb-10">
-                          <div className="grid md:grid-cols-2 ">
-                            <div>
-                              <label className="text-gray-600 font-medium ">
-                                Add Category
-                              </label>
-                              <input
-                                className="p-2 border border-gray-300 rounded-md text-gray-700 focus:border-orange-500 focus:outline-none"
-                                type="text"
-                                placeholder="Enter category"
-                              />
-                            </div>
-                            <div className="mb-6">
-                              <label className="text-gray-600 font-medium mb-1">
-                                Add Category
-                              </label>
-                              <input
-                                className="p-2 border border-gray-300 rounded-md text-gray-700 focus:border-orange-500 focus:outline-none"
-                                type="text"
-                                placeholder="Enter category"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-gray-600 font-medium mb-1">
-                                Add Category
-                              </label>
-                              <input
-                                className="p-2 border border-gray-300 rounded-md text-gray-700 focus:border-orange-500 focus:outline-none"
-                                type="text"
-                                placeholder="Enter category"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-gray-600 font-medium mb-1">
-                                Add Category
-                              </label>
-                              <input
-                                className="p-2 border border-gray-300 rounded-md text-gray-700 focus:border-orange-500 focus:outline-none"
-                                type="text"
-                                placeholder="Enter category"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        <button className="px-4 py-2 bg-orange-400 text-white rounded-md hover:bg-orange-500">
-                          Submit
-                        </button>
-                      </form>
-
-                      <div className="flex justify-end gap-4 mt-6">
-                        <button
-                          onClick={closeModal}
-                          className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-                        >
-                          Close
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 <div>
                   <span className=" text-gray-700 text-xl font-bold ">
